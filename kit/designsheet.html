@@ -1,0 +1,80 @@
+<!doctype html><meta charset=utf-8>
+<style>
+@font-face{font-family:Poppins;font-weight:800;src:url(/node_modules/@fontsource/poppins/files/poppins-latin-800-normal.woff2)}
+@font-face{font-family:Poppins;font-weight:700;src:url(/node_modules/@fontsource/poppins/files/poppins-latin-700-normal.woff2)}
+html,body{margin:0;background:#000;overflow:hidden}#wrap{position:relative;width:100vw;height:100vh}canvas{display:block}
+#lab{position:absolute;inset:0;pointer-events:none;font-family:Poppins,sans-serif;color:#2a1a10}
+.l{position:absolute;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.l b{display:block;font-weight:800;font-size:2.1vw;letter-spacing:.02em}
+.l i{display:block;font-style:normal;font-weight:700;font-size:1.15vw;opacity:.7;margin-top:.1vw}
+.l .sw{display:flex;gap:.45vw;justify-content:center;margin-top:.55vw}.l .sw span{width:1.5vw;height:1.5vw;border-radius:.4vw;border:.14vw solid #2a1a10}
+#title{position:absolute;left:2.2vw;top:1.6vw;font:800 2.6vw Poppins;color:#2a1a10}#title small{display:block;font:700 1.1vw Poppins;opacity:.65;margin-top:.2vw}
+</style>
+<div id=wrap><div id=lab></div></div>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as K from '/blockkit.js'; import { DEF, makeOne, pose } from '/cast.js';
+const { THREE } = K;
+const q = new URLSearchParams(location.search), W = +q.get('w') || 1600, H = +q.get('h') || 900;
+await document.fonts.load('800 40px Poppins'); await document.fonts.load('700 20px Poppins');
+const S = K.makeStage(W, H, { sky: '#ead9b8' }); document.getElementById('wrap').prepend(S.renderer.domElement);
+const { scene, camera, renderer, sun, hemi } = S; hemi.intensity = 2.9; sun.intensity = 1.5; sun.position.set(-6, 10, 8); sun.target.position.set(0, 0, 0);
+const lab = document.getElementById('lab');
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), new THREE.MeshLambertMaterial({ color: '#ead9b8' })); wall.position.set(0, 8, -3); wall.receiveShadow = true; scene.add(wall);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), new THREE.MeshLambertMaterial({ color: '#d9c39b' })); floor.rotation.x = -Math.PI / 2; floor.position.z = 8; floor.receiveShadow = true; scene.add(floor);
+
+const order = ['pip', 'mira', 'dana', 'gus', 'pim'], X = { pip: -3.1, mira: -1.55, dana: 0, gus: 1.55, pim: 3.1 };
+const lineup = Object.fromEntries(order.map(n => [n, makeOne(n)]));
+const turn = [0, .75, Math.PI / 2, Math.PI].map(() => makeOne('mira'));
+const exprs = Array.from({ length: 6 }, () => makeOne('mira'));
+const all = [...Object.values(lineup), ...turn, ...exprs]; all.forEach(c => { scene.add(c.root); c.root.visible = false; });
+
+const proj = (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x * .5 + .5) * W, (-v.y * .5 + .5) * H]; };
+const label = (x, yPx, html) => { const d = document.createElement('div'); d.className = 'l'; d.style.left = x + 'px'; d.style.top = yPx + 'px'; d.innerHTML = html; lab.appendChild(d); };
+const sw = a => `<div class=sw>${a.map(c => `<span style="background:${c}"></span>`).join('')}</div>`;
+const title = (a, b) => { const d = document.createElement('div'); d.id = 'title'; d.innerHTML = `${a}<small>${b}</small>`; lab.appendChild(d); };
+
+window.frame = t => {
+  const mode = Math.round(t); lab.innerHTML = ''; all.forEach(c => c.root.visible = false);
+  wall.visible = floor.visible = mode !== 2; scene.background = new THREE.Color(mode === 2 ? '#f3e4c6' : '#ead9b8');
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H); renderer.autoClear = true;
+  if (mode === 0) {                       // ---------- lineup ----------
+    K.setOutlineWidth(.0009);
+    title('BLOCK-TOON CAST', 'five original characters · same proportions, different silhouettes');
+    for (const n of order) { const C = lineup[n]; C.root.visible = true; pose(n, C); C.p.x = X[n]; K.applyPose(C, C.p); C.drawFace(); }
+    K.aim(camera, [0, 1.02, 15], [0, 1.0, 0], 16.5, 0);
+    for (const n of order) { const [px, py] = proj(X[n], 0, 0); label(px, py + H * .035, `<b>${DEF[n].name}</b><i>${DEF[n].role}</i>${sw(DEF[n].sw)}`); }
+  } else if (mode === 1) {                // ---------- turnaround ----------
+    K.setOutlineWidth(.0009); title('MIRA · TURNAROUND', 'front · three-quarter · side · back');
+    const yaws = [0, .75, Math.PI / 2, Math.PI], names = ['FRONT', '3/4', 'SIDE', 'BACK'], xs = [-3.1, -1.05, 1.05, 3.1];
+    turn.forEach((C, i) => { C.root.visible = true; pose('none', C); C.face.mouth = .15; C.face.smile = .6; C.p.x = xs[i]; C.p.yaw = yaws[i]; K.applyPose(C, C.p); C.drawFace(); });
+    K.aim(camera, [0, 1.0, 15], [0, .95, 0], 17.5, 0);
+    xs.forEach((x, i) => { const [px, py] = proj(x, 0, 0); label(px, py + H * .035, `<b style="font-size:1.6vw">${names[i]}</b>`); });
+  } else {                                // ---------- expressions: six scissor-tiles, one Mira bust each ----------
+    K.setOutlineWidth(.0016); title('MIRA · EXPRESSIONS', 'painted face, redrawn every frame: eyes, brows and mouth are parameters');
+    const E = [
+      ['NEUTRAL', f => { f.smile = .3; f.mouth = 0; f.brow = [0, 0, .2]; }],
+      ['HAPPY', f => { f.smile = .9; f.mouth = .45; f.brow = [.35, -.25, .4]; }],
+      ['ANGRY', f => { f.smile = -.55; f.mouth = .2; f.brow = [-.25, .95, .3]; f.squint = .35; }],
+      ['SURPRISED', f => { f.smile = 0; f.mouth = .95; f.mouthW = .1; f.brow = [1, -.3, .7]; f.lookY = -.1; }],
+      ['WORRIED', f => { f.smile = -.7; f.mouth = 0; f.brow = [.35, -.9, .3]; f.lookY = -.45; f.lookX = .3; }],
+      ['SMUG', f => { f.smile = .85; f.mouth = 0; f.brow = [.1, .55, .2]; f.squint = .55; f.lookX = .9; }],
+    ];
+    const tw = 486, th = 300, gx = 30, x0 = 40, ys = [150, 520];
+    renderer.autoClear = false; renderer.setScissorTest(true); renderer.setClearColor('#ead9b8'); renderer.setViewport(0, 0, W, H); renderer.setScissor(0, 0, W, H); renderer.clear();
+    exprs.forEach((C, i) => {
+      pose('none', C); E[i][1](C.face); C.p.yaw = i % 2 ? -.12 : .12; K.applyPose(C, C.p); C.drawFace();
+      exprs.forEach(o => o.root.visible = o === C);
+      const x = x0 + (i % 3) * (tw + gx), y = ys[(i / 3) | 0];
+      renderer.setViewport(x, H - y - th, tw, th); renderer.setScissor(x, H - y - th, tw, th); renderer.clear();
+      camera.aspect = tw / th; K.aim(camera, [0, 1.36, 6], [0, 1.36, 0], 10.5, 0); camera.aspect = tw / th; camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+      label(x + tw / 2, y + th + 6, `<b style="font-size:1.5vw">${E[i][0]}</b>`);
+    });
+    camera.aspect = W / H; camera.updateProjectionMatrix(); renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H); renderer.autoClear = true;
+    return;
+  }
+  renderer.render(scene, camera);
+};
+window.__ready = true;
+</script>
